@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# gnome-set-folder-icon
+
+# Sets the icon used by Nautilus when displaying a directory, to one
+#   of the conventional names used by such icons, e.g., .folder.gif,
+#   cover.jpg
+
+# Usage:
+#  gnome-set-folder-icon {directory 1} {directory 2}...
+
+# One or more directories can be specified; execution stops if 
+#  an argument is encountered that is not a directory.
+
+# Kevin Boone, March 2022
+
+# Define arrays for the filenames and extensions. Note that the first 
+#   match is the one that will be used, so prefered names and extensions
+#   should be listed first, if folders might contain multiple icon files.
+NAMES=( cover folder Folder .folder )
+EXTS=( .png .jpg .gif )
+
+# Function do_directory() takes a single argument -- the name of the
+#   directory to process
+function do_directory () 
+  {
+  dir=$1
+
+  if [ ! -d "$dir" ] 
+  then
+    echo $0 : "'$dir' is not a directory"
+    exit 1
+  fi
+
+  # Iterate through all the names and extensions, looking for a file
+  #   with each name
+
+  for name in "${NAMES[@]}"
+  do
+    for ext in "${EXTS[@]}"
+    do
+       test_icon_path=${dir}/${name}${ext};
+       if [ -f "$test_icon_path" ] 
+       then
+	 # Gnome requires full pathnames for the directory and the
+	 #   folder icon. We need to be careful with quoting here, as
+	 #   both may contain spaces
+	 full_dir=`realpath "$dir"`
+	 full_icon_path=`realpath "$test_icon_path"`
+	 echo "Setting folder icon file for '$full_dir' to '$full_icon_path'"
+	 # If the folder icon file exists, use gio to set the attribute 
+	 #   "metadata::custom-icon". Then quit, because we are done.
+	 gio set -t string "$full_dir" "metadata::custom-icon" \
+	   "file://$full_icon_path" 
+         return
+       fi
+    done
+  done
+
+  # If we get here, none of the name.extension pairs matched.
+  echo "No folder icon file for '$dir'"
+  }
+
+# Execution starts here
+
+# Check that there is at least one directory on the command line
+
+if [ $# -eq 0 ] ; then 
+  echo Usage: $0 {directory 1} {directory 2}... 
+  exit 1
+fi
+
+# Now iterate the arguments, calling do_directory() on each
+
+for arg in "$@"
+do
+  do_directory "$arg"
+done
+
+
